@@ -27,4 +27,4 @@ temp/
 # Ignore other system files
 .DS_Store
 Thumbs.db
-package/.env:2
+package.env:2
