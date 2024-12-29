@@ -2,48 +2,61 @@ pipeline {
     agent any
 
     environment {
-        // Use Jenkins credentials for AWS access
-        AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')
-        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
-        AWS_DEFAULT_REGION = 'us-east-1'  // Set your desired region here
+        AWS_CREDENTIALS = credentials('aws-credentials-id')  // Use the Jenkins AWS credentials ID
     }
 
     stages {
-        stage('Checkout') {
+        stage('Clone Repository') {
             steps {
-                checkout scm  // Checkout your code from the Git repository
+                git 'https://github.com/VinodPandhare/Technical_Assignment.git'
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Terraform Init') {
             steps {
                 script {
-                    // Your Docker image build commands here
-                    sh 'docker build -t my-image .'
+                    sh 'terraform init'  // Initialize Terraform
                 }
             }
         }
 
-        stage('Push Docker Image to ECR') {
+        stage('Terraform Plan') {
             steps {
                 script {
-                    // Login to AWS ECR
-                    sh 'aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin <your_ecr_url>'
-
-                    // Tag and push the image to ECR
-                    sh 'docker tag my-image:latest <your_ecr_url>/my-image:latest'
-                    sh 'docker push <your_ecr_url>/my-image:latest'
+                    sh 'terraform plan'  // Show the Terraform execution plan
                 }
             }
         }
 
-        stage('Deploy Lambda Function') {
+        stage('Terraform Apply') {
             steps {
                 script {
-                    // Use AWS CLI to deploy Lambda function (example command)
-                    sh 'aws lambda update-function-code --function-name my-lambda-function --zip-file fileb://lambda.zip'
+                    sh 'terraform apply -auto-approve'  // Apply the Terraform configuration
                 }
             }
+        }
+
+        stage('Deploy Lambda') {
+            steps {
+                script {
+                    // Add deployment steps for Lambda or other components
+                    sh 'aws lambda update-function-code --function-name YourLambdaFunctionName --zip-file fileb://lambda.zip'
+                }
+            }
+        }
+
+        stage('Terraform Destroy') {
+            steps {
+                script {
+                    sh 'terraform destroy -auto-approve'  // Optionally, add a destroy stage
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()  // Clean workspace after the pipeline runs
         }
     }
 }
