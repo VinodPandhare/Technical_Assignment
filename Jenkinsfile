@@ -3,19 +3,20 @@ pipeline {
 
     environment {
         AWS_CREDENTIALS = credentials('aws-credentials-id')  // Use the Jenkins AWS credentials ID
+        AWS_REGION = 'us-west-2'  // Set your AWS region
     }
 
     stages {
         stage('Clone Repository') {
             steps {
-                git 'https://github.com/VinodPandhare/Technical_Assignment.git'
+                git 'https://github.com/VinodPandhare/Technical_Assignment.git'  // Clone the repository
             }
         }
 
         stage('Terraform Init') {
             steps {
                 script {
-                    sh 'terraform init'  // Initialize Terraform
+                    sh 'terraform init'  // Initialize Terraform to download necessary providers
                 }
             }
         }
@@ -36,11 +37,29 @@ pipeline {
             }
         }
 
+        stage('Package Lambda Code') {
+            steps {
+                script {
+                    // Package the Lambda code into a ZIP file
+                    sh 'zip -r lambda.zip lambda_function.py'  // Ensure lambda_function.py is the correct file path
+                }
+            }
+        }
+
         stage('Deploy Lambda') {
             steps {
                 script {
-                    // Add deployment steps for Lambda or other components
-                    sh 'aws lambda update-function-code --function-name YourLambdaFunctionName --zip-file fileb://lambda.zip'
+                    // Deploy Lambda code using AWS CLI
+                    if (fileExists('lambda.zip')) {
+                        sh """
+                            aws lambda update-function-code \\
+                            --function-name vineet_lambda \\
+                            --zip-file fileb://lambda.zip \\
+                            --region ${AWS_REGION}
+                        """
+                    } else {
+                        error("Lambda ZIP file not found!")
+                    }
                 }
             }
         }
@@ -48,7 +67,7 @@ pipeline {
         stage('Terraform Destroy') {
             steps {
                 script {
-                    sh 'terraform destroy -auto-approve'  // Optionally, add a destroy stage
+                    sh 'terraform destroy -auto-approve'  // Optionally, destroy the infrastructure after the task is completed
                 }
             }
         }
