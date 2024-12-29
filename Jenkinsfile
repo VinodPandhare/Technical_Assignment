@@ -1,22 +1,30 @@
 pipeline {
     agent any
-
     environment {
-        AWS_CREDENTIALS = credentials('aws-credentials-id')  // Use the Jenkins AWS credentials ID
-        AWS_REGION = 'us-west-2'  // Set your AWS region
+        AWS_REGION = 'us-east-1'  // Specify your AWS region
     }
-
     stages {
-        stage('Clone Repository') {
+        stage('Checkout') {
             steps {
-                git 'https://github.com/VinodPandhare/Technical_Assignment.git'  // Clone the repository
+                // Checkout the code from your Git repository
+                checkout scm
+            }
+        }
+        
+        stage('Install Terraform') {
+            steps {
+                script {
+                    // Ensure Terraform is installed and available on Jenkins
+                    sh 'terraform --version'
+                }
             }
         }
 
         stage('Terraform Init') {
             steps {
                 script {
-                    sh 'terraform init'  // Initialize Terraform to download necessary providers
+                    // Initialize Terraform (make sure your .tf files are in place)
+                    sh 'terraform init'
                 }
             }
         }
@@ -24,7 +32,8 @@ pipeline {
         stage('Terraform Plan') {
             steps {
                 script {
-                    sh 'terraform plan'  // Show the Terraform execution plan
+                    // Generate and display the Terraform execution plan
+                    sh 'terraform plan'
                 }
             }
         }
@@ -32,50 +41,28 @@ pipeline {
         stage('Terraform Apply') {
             steps {
                 script {
-                    sh 'terraform apply -auto-approve'  // Apply the Terraform configuration
+                    // Apply the Terraform plan to create resources
+                    sh 'terraform apply -auto-approve'
                 }
             }
         }
 
-        stage('Package Lambda Code') {
+        stage('Deploy Lambda Function') {
             steps {
-                script {
-                    // Package the Lambda code into a ZIP file
-                    sh 'zip -r lambda.zip lambda_function.py'  // Ensure lambda_function.py is the correct file path
-                }
-            }
-        }
-
-        stage('Deploy Lambda') {
-            steps {
-                script {
-                    // Deploy Lambda code using AWS CLI
-                    if (fileExists('lambda.zip')) {
-                        sh """
-                            aws lambda update-function-code \\
-                            --function-name vineet_lambda \\
-                            --zip-file fileb://lambda.zip \\
-                            --region ${AWS_REGION}
-                        """
-                    } else {
-                        error("Lambda ZIP file not found!")
+                // Use withCredentials to securely access your AWS credentials
+                withCredentials([aws(credentialsId: 'aws-credentials-id', region: AWS_REGION)]) {
+                    script {
+                        // Assuming your Lambda function code is in 'lambda_function.py'
+                        sh 'aws lambda update-function-code --function-name myLambdaFunction --zip-file fileb://lambda_function.zip'
                     }
                 }
             }
         }
-
-        stage('Terraform Destroy') {
-            steps {
-                script {
-                    sh 'terraform destroy -auto-approve'  // Optionally, destroy the infrastructure after the task is completed
-                }
-            }
-        }
     }
-
     post {
         always {
-            cleanWs()  // Clean workspace after the pipeline runs
+            // Cleanup or notifications after pipeline execution
+            echo 'Pipeline execution completed.'
         }
     }
 }
